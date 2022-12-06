@@ -1,0 +1,59 @@
+---
+title: "MA317 Final Assignment"
+author: "Jasper Yang"
+date: "12/6/2022"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Read in the data
+LE_data <- read.csv("Life_Expectancy_Data1.csv")
+
+### load packages
+library(ISLR)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(flextable)
+```
+
+## Question 1
+
+1. Exploratory Data Analysis: describe the data and deal with missing values
+(a) Analyse using descriptive statistics (both graphical and numerical representations) and R the Life Expectancy data1.csv dataset. [12 marks]
+
+```{r, echo = FALSE}
+# N obs
+dim(LE_data) # 217 observations, 29 columns
+
+head(LE_data) 
+
+# Correlation plot
+#LE_cor <- cor(LE_data)
+#corrplot.mixed(LE_cor, lower.col = "black", number.cex = .7)
+
+```
+
+(b) Many predictors in the dataset contain missing values. Is deleting predictor variables with
+many missing values an appropriate method to deal with missing values? Choose a method
+to deal with the missing values and then employ this method to the life expectancy data.
+Justify your choice. Additionally, there are some countries (cases) where the value of Life
+expectancy is missing. Explain how you will handle this problem. [13 marks]
+
+2. Collinearity increases the variance of the estimators and hence, reduces the adequacy of the model. When collinearity is present, how do you solve this problem? Investigate collinearity between the predictor variables in the LifeExpectancyData1.csv dataset. [12 marks]
+
+```{r}
+library(faraway)
+#vif(LE_data)
+```
+
+3. To understand better life expectancy and the factors that affect it, suggest the best linear model which predicts life expectancy in 2020. Interpret and evaluate the suggested model. [25 marks]
+
+4. Using the same dataset and using the additional feature Continent, employ an appropriate experimental design to study differences of average life expectancies across the continents: Asia, Europe, North America, South America, Africa, Australia/Oceania. Justify your choice of experimental design and methods. [13 marks]
+
