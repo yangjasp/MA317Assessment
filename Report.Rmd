@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Read in the data
 LE_data <- read.csv("Life_Expectancy_Data1.csv")
+LE_data <- subset(LE_data, select = -c(Country.Code,EG.FEC.RNEW.ZS)) #we deleted ..
 
 ### load packages
 library(ISLR)
@@ -21,6 +22,8 @@ library(dplyr)
 library(ggplot2)
 library(corrplot)
 library(flextable)
+library(mice)
+library(faraway)
 ```
 
 ## Question 1
@@ -237,10 +240,61 @@ to deal with the missing values and then employ this method to the life expectan
 Justify your choice. Additionally, there are some countries (cases) where the value of Life
 expectancy is missing. Explain how you will handle this problem. [13 marks]
 
+```{r, echo = FALSE}
+
+x = c()
+
+for (i in 1:ncol(LE_data))
+{
+  x[i] = mean(is.na(LE_data[,i]))
+  names(x)[i] = names(LE_data)[i]
+}
+
+y = x[x < 0.4]
+assigns = names(y)
+
+LE_data1 <- LE_data[ ,names(LE_data) %in% assigns]
+Country.Name <- LE_data$Country.Name
+
+LE_data2 <- subset(LE_data1, select = -c(Country.Name,Continent))
+```
+
+```{r}
+
+#cor(LE_data2, use = "complete.obs")
+#install.packages("caret")
+#install.packages("vctrs")
+#library(caret)
+#findLinearCombos(LE_data2)
+
+```
+
+```{r}
+imputations <- mice(LE_data2, seed = 2310, method = "cart")
+print(imputations)
+complete(imputations)
+
+imputations$imp
+stripplot(imputations, pch = 20, cex = 1.2)
+xyplot(imputations, bmi ~ chl | .imp, pch = 20, cex = 1.4)
+
+#Define the analysis you want to perform at Stage 2
+feature.selection1 <- expression(null.model1 <- lm(SP.DYN.LE00.IN ~ 1), model2 <- step(null.model1, scope = ~ EG.ELC.ACCS.ZS + NY.ADJ.NNTY.KD.ZG + NY.ADJ.NNTY.PC.KD.ZG + SP.DYN.IMRT.IN + SP.POP.GROW + EN.POP.DNST + SP.POP.TOTL + SH.XPD.CHEX.PC.CD + SH.XPD.CHEX.GD.ZS + NY.GDP.MKTP.KD.ZG + NY.GDP.PCAP.CD + SP.DYN.CBRT.IN + SE.COM.DURS))
+
+#Using the with function evaluate the above expression
+step.fit <- with(imputations, feature.selection1)
+step.fit.models <- lapply(step.fit$analyses, formula)
+step.fit.features <- lapply(step.fit.models, terms)
+feature.frequency <- unlist(lapply(step.fit.features, labels))
+feature.frequency
+sort(table(feature.frequency), decreasing=TRUE)
+
+```
+
 2. Collinearity increases the variance of the estimators and hence, reduces the adequacy of the model. When collinearity is present, how do you solve this problem? Investigate collinearity between the predictor variables in the LifeExpectancyData1.csv dataset. [12 marks]
 
 ```{r}
-library(faraway)
+
 #vif(LE_data)
 ```
 
