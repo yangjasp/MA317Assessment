@@ -241,14 +241,14 @@ table1_table <- align(table1_table,j = 2:7, align = "right", part = "all")
 table1_table <- width(table1_table, width = c(1.4,1.0,1.0,1.0,1.0,1.0, 1.0))
 #table1_table <- height_all(table1_table,height = 0.30)
 table1_table <- hrule(table1_table, rule = "at least", part = "all")
-table1_table <- footnote(table1_table, j = 1, i = 1, part="body",  value = as_paragraph("Mean (SD)" ))
-table1_table <- footnote(table1_table, j = 1, i = 1, part="body",  value = as_paragraph(paste0(
-  "Value reported from complete cases only. Missingness present for each variable at the following rates: ",
-  "Life Expectancy ", life_expectancy_pmissing, ";",
-  "Primary Education Completion ", primary_completion_pmissing, ";",
-  "Health Expenditure ", health_expenditure_pmissing, ";",
-  "Population Density ", pop_density_pmissing, ";",
-  "GDP ", GDP_pmissing, ".")))
+#table1_table <- footnote(table1_table, j = 1, i = 1, part="body",  value = as_paragraph("Mean (SD)" ))
+#table1_table <- footnote(table1_table, j = 1, i = 2, part="body",  value = as_paragraph(paste0(
+#  "Value reported from complete cases only. Missingness present for each variable at the following rates: ",
+#  "Life Expectancy ", life_expectancy_pmissing, ";",
+#  "Primary Education Completion ", primary_completion_pmissing, ";",
+#  "Health Expenditure ", health_expenditure_pmissing, ";",
+#  "Population Density ", pop_density_pmissing, ";",
+#  "GDP ", GDP_pmissing, ".")))
 
 ```
 
@@ -284,7 +284,8 @@ assigns = names(y)
 LE_data1 <- LE_data[ ,names(LE_data) %in% assigns]
 Country.Name <- LE_data$Country.Name
 
-LE_data2 <- subset(LE_data1, select = -c(Country.Name,Continent))
+LE_data2 <- subset(LE_data1, select = -c(Country.Name, Continent))
+
 ```
 
 ```{r}
@@ -340,8 +341,19 @@ sort(table(feature.frequency), decreasing=TRUE)
 
 ```{r}
 # Use faraway from Lab 4
+model1 <- lm(SP.DYN.LE00.IN ~ ., data=complete(imputations))
+summary(model1)
 
-#vif(LE_data)
+corr <- cor(complete(imputations)[,-1])
+corr
+
+library(corrplot)
+corrplot.mixed(corr, lower.col = "black", number.cex = 0.7, tl.cex = 0.5)
+
+corrplot(corr,tl.cex = 0.5)
+
+faraway::vif(complete(imputations)[,-1])
+
 ```
 
 3. To understand better life expectancy and the factors that affect it, suggest the best linear model which predicts life expectancy in 2020. Interpret and evaluate the suggested model. [25 marks]
@@ -361,7 +373,15 @@ step.fit.features <- lapply(step.fit.models, terms)
 feature.frequency <- unlist(lapply(step.fit.features, labels))
 feature.frequency
 sort(table(feature.frequency), decreasing=TRUE)
+
 ```
 
 4. Using the same dataset and using the additional feature Continent, employ an appropriate experimental design to study differences of average life expectancies across the continents: Asia, Europe, North America, South America, Africa, Australia/Oceania. Justify your choice of experimental design and methods. [13 marks]
 
+```{r}
+library(car)
+anova_LE <- aov(SP.DYN.LE00.IN ~ as.factor(Continent), data=complete(imputations))
+summary(anova_LE)
+Anova(anova_LE, type = "III")
+
+```
