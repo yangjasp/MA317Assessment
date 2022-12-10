@@ -3,9 +3,9 @@ title: "MA317 Final Assignment"
 author: "Jasper Yang"
 date: "12/6/2022"
 output:
+  word_document: default
   html_document:
     df_print: paged
-  word_document: default
 ---
 
 ```{r setup, include= FALSE}
@@ -13,8 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Read in the data
 LE_data_raw <- read.csv("Life_Expectancy_Data1.csv")
-LE_data <- subset(LE_data_raw, select = -c(Country.Code,EG.FEC.RNEW.ZS)) #we deleted ..
+LE_data <- subset(LE_data_raw, select = -c(Country.Code,EG.FEC.RNEW.ZS)) #we deleted .. Renewable energy consumption because it had 100% missingness
 LE_data$SP.POP.TOTL <- LE_data$SP.POP.TOTL/100000 # Change units of population to be more interpretable
+LE_data$SH.HIV.INCD <- LE_data$SH.HIV.INCD/1000 # Change units of HIV adults to 1000s
 
 ### load packages
 library(ISLR)
@@ -31,6 +32,10 @@ library(ggsci)
 library(miceadds)
 library(officer)
 library(multcomp)
+library(car)
+
+# options
+m <- 10 # number of imputations
 ```
 
 ## Question 1
@@ -41,6 +46,19 @@ library(multcomp)
 ```{r, echo = FALSE}
 # N obs
 dim(LE_data) # 217 observations, 29 columns
+
+# N missing for LE
+table(is.na(LE_data$SP.DYN.LE00.IN))
+table(is.na(LE_data$SP.DYN.LE00.IN))/nrow(LE_data)
+
+
+# Max and min
+max(LE_data$SP.DYN.LE00.IN, na.rm = TRUE)
+dplyr::arrange(LE_data, desc(SP.DYN.LE00.IN))$Country.Name[1]
+
+min(LE_data$SP.DYN.LE00.IN, na.rm = TRUE)
+dplyr::arrange(LE_data, SP.DYN.LE00.IN)$Country.Name[1]
+
 
 vec <- c()
 for (i in 1:ncol(LE_data)){
@@ -115,19 +133,19 @@ table1_life_expectancy <- c(life_expectancy_Africa,
 
 ## Primary Educational Attainment (% 25+) 
 primary_completion_Africa <- paste0(
-  sprintf("%.1f",mean(LE_Africa$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f", sd(LE_Africa$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_Africa$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f", sd(LE_Africa$primary_completion_rate, na.rm = TRUE)), ")")
 primary_completion_Asia <- paste0(
-  sprintf("%.1f",mean(LE_Asia$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_Asia$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_Asia$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_Asia$primary_completion_rate, na.rm = TRUE)), ")")
 primary_completion_Oceania <- paste0(
-  sprintf("%.1f",mean(LE_Oceania$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_Oceania$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_Oceania$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_Oceania$primary_completion_rate, na.rm = TRUE)), ")")
 primary_completion_Europe <- paste0(
-  sprintf("%.1f",mean(LE_Europe$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_Europe$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_Europe$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_Europe$primary_completion_rate, na.rm = TRUE)), ")")
 primary_completion_NA <- paste0(
-  sprintf("%.1f",mean(LE_NA$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_NA$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_NA$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_NA$primary_completion_rate, na.rm = TRUE)), ")")
 primary_completion_SA <- paste0(
-  sprintf("%.1f",mean(LE_SA$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_SA$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_SA$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_SA$primary_completion_rate, na.rm = TRUE)), ")")
 primary_completion_All <- paste0(
-  sprintf("%.1f",mean(LE_data$ed_attain_primary_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_data$ed_attain_primary_rate, na.rm = TRUE)), ")")
+  sprintf("%.1f",mean(LE_data$primary_completion_rate, na.rm = TRUE)), ' (', sprintf("%.1f",sd(LE_data$primary_completion_rate, na.rm = TRUE)), ")")
 
 table1_primary_completion <- c(primary_completion_Africa,
                         primary_completion_Asia,
@@ -224,7 +242,7 @@ life_expectancy_pmissing <- paste0(
   sprintf("%.1f",mean(is.na(LE_data$life_expectancy))*100), '%')
 
 primary_completion_pmissing <- paste0(
-  sprintf("%.1f",mean(is.na(LE_data$ed_attain_primary_rate))*100), '%')
+  sprintf("%.1f",mean(is.na(LE_data$primary_completion_rate))*100), '%')
 
 pop_density_pmissing <- paste0(
   sprintf("%.1f",mean(is.na(LE_data$pop_dens))*100), '%')
@@ -249,7 +267,7 @@ table1_df <- as.data.frame(table1_df)
 names(table1_df) <- c("Continent",
                       "Number of Countries",
                       "Life Expectancy at Birth (years)",
-                      "Primary School Completion Rate (%)", 
+                      "Primary School Completion Rate (total of % by age)", 
                       "Health Expenditure (current international $)",
                       "Population Density (people per sq. km)",
                       "GDP per Capita (current international $)")
@@ -258,7 +276,7 @@ table1_table <- flextable(table1_df, col_keys = c(
   "Continent",
   "Number of Countries",
   "Life Expectancy at Birth (years)",
-  "Primary School Completion Rate (%)", 
+  "Primary School Completion Rate (total of % by age)", 
   "Health Expenditure (current international $)",
   "Population Density (people per sq. km)",
   "GDP per Capita (current international $)"))
@@ -327,6 +345,8 @@ table2_table <- width(table2_table, width = c(1.4,1.4))
 #table1_table <- height_all(table1_table,height = 0.30)
 table2_table <- hrule(table2_table, rule = "at least", part = "all")
 table2_table
+
+# Note, we also manually added the variable with 100% missingness to the table after generation
 ```
 
 ## Some graphs for out variable of interest: LE
@@ -366,11 +386,12 @@ p3 <- ggplot(data = LE_data, aes(x = health_expend_pc,
   ggsci::scale_color_jama()+
   scale_x_log10() + 
   theme_bw()+
-  ylab("Population (in 10,000)") +
+  ylab("Life Expectancy (Years)") +
   xlab("Healthcare Expenditure Per Capita ($)") +
+  guides(size = "none") +
   theme(plot.margin = unit(c(1,0.5,0.5,0.5), "cm"))
 
-top <- cowplot::plot_grid(p1, p2, labels = c("A. Histogram of Life Expectancy", "B. Boxplot of Life Expectancy by GDP Quantile"),
+top <- cowplot::plot_grid(p1, p2, labels = c("A. Histogram of Life Expectancy", "B. Life Expectancy by GDP"),
                           hjust = -0.1)
 bottom <- cowplot::plot_grid(p3, labels = c("C. Life Expectancy by Population and Healthcare Spending"),
                              hjust = -0.1)
@@ -413,14 +434,25 @@ LE_data2 <- subset(LE_data1, select = -c(Country.Name))
 ```
 
 ```{r, echo = FALSE, results = 'hide'}
+### First, we create predictor matrix without LE, so LE isn't used
+### to predict covariates.
 
-imputations <- mice(LE_data2, seed = 2310, method = "pmm", m = 15)
+pred <- mice::make.predictorMatrix(LE_data2)
+pred[,"life_expectancy"] <- 0 # never use it as a predictor
+
+
+
+imputations <- mice(LE_data2, seed = 231, 
+                    predictorMatrix = pred,
+                    method = "pmm", m = 10)
 
 imputations$imp
 #stripplot(imputations, pch = 20, cex = 1.2)
 #xyplot(imputations, bmi ~ chl | .imp, pch = 20, cex = 1.4)
 
 #Define the analysis you want to perform at Stage 2
+feature.selection1 <- expression(null.model1 <- lm(life_expectancy ~ 1), model2 <- step(null.model1, scope = ~ Continent + electricity_access + income_growth + income_growth_pc + children_out_of_school + infant_mortality_rate + primary_completion_rate + real_interest_rate + pop_growth_perc_annual + pop_dens + pop_total + health_expend_pc + health_expend_perc_gdp + unemployment_rate + gdp_growth + gdp_pc + birth_rate + adults_HIV + safe_drinking_water + ed_duration ))
+
 feature.selection1 <- expression(null.model1 <- lm(life_expectancy ~ 1), model2 <- step(null.model1, scope = ~ Continent + electricity_access + income_growth + income_growth_pc + children_out_of_school + infant_mortality_rate + primary_completion_rate + real_interest_rate + pop_growth_perc_annual + pop_dens + pop_total + health_expend_pc + health_expend_perc_gdp + unemployment_rate + gdp_growth + gdp_pc + birth_rate + adults_HIV + safe_drinking_water + ed_duration ))
 
 #Using the with function evaluate the above expression
@@ -431,6 +463,70 @@ feature.frequency <- unlist(lapply(step.fit.features, labels))
 feature.frequency
 sort(table(feature.frequency), decreasing=TRUE)
 
+```
+
+```{r, echo = FALSE}
+# Plot the missing values manually
+countries_missing_LE <- dplyr::filter(LE_data, is.na(life_expectancy))$Country.Name
+
+vars <- c("life_expectancy", "adults_HIV", "health_expend_pc",
+          "infant_mortality_rate")
+imp1 <- cbind(LE_data$Country.Name,"imp" = 1, 
+              complete(imputations, 1))
+imp2 <- cbind(LE_data$Country.Name,"imp" = 2, 
+              complete(imputations, 2))
+imp3 <- cbind(LE_data$Country.Name,"imp" = 3, 
+              complete(imputations, 3))
+imp4 <- cbind(LE_data$Country.Name,"imp" = 4, 
+              complete(imputations, 4))
+imp5 <- cbind(LE_data$Country.Name,"imp" = 5, 
+              complete(imputations, 5))
+
+imps <- rbind(imp1, imp2, imp3, imp4, imp5)
+names(imps)[1] <- "Country.Name"
+imps <- imps %>%
+  dplyr::mutate(Type = ifelse(Country.Name %in% countries_missing_LE, "Imputed", "Not Imputed")) %>%
+  dplyr::arrange(desc(Type)) # so 
+
+p1 <- ggplot(imps, aes(x = imp, 
+                       y = life_expectancy,
+                       color = Type)) +
+  geom_point(size = 0.8, shape = 1,
+             show.legend = FALSE) + 
+  theme_bw()+ 
+  scale_color_manual(values = c("#8B0000", "#FFFF00")) + 
+  xlab("Imputation") + 
+  ylab("Life expectancy (years)")
+
+p2 <- ggplot(imps, aes(x = imp, 
+                       y = safe_drinking_water,
+                       color = Type)) +
+  geom_point(shape = 1, size = 0.8, show.legend = FALSE) +
+  theme_bw()+ 
+  scale_color_manual(values = c("#8B0000", "#FFFF00")) + 
+  xlab("Imputation") + 
+  ylab("Safe drinking water (%)")
+
+p3 <- ggplot(imps, aes(x = imp, 
+                       y = health_expend_pc,
+                       color = Type)) +
+  geom_point(shape = 1, size = 0.8, show.legend = FALSE) +
+  theme_bw()+ 
+  scale_color_manual(values = c("#8B0000", "#FFFF00")) + 
+  xlab("Imputation") + 
+  ylab("Health expenditure per capita ")
+
+p4 <- ggplot(imps, aes(x = imp, 
+                       y = infant_mortality_rate,
+                       color = Type)) +
+  geom_point(shape = 1, size = 0.8, show.legend = FALSE) +
+  theme(axis.title.y = element_text(size = 9)) + 
+  theme_bw()+ 
+  scale_color_manual(values = c("#8B0000", "#FFFF00")) + 
+  xlab("Imputation") + 
+  ylab("Infant mortality rate (per 1,000 live births)")
+
+cowplot::plot_grid(p1, p2, p3, p4, nrow = 2, hjust = -0.1)
 ```
 
 2. Collinearity increases the variance of the estimators and hence, reduces the adequacy of the model. When collinearity is present, how do you solve this problem? Investigate collinearity between the predictor variables in the LifeExpectancyData1.csv dataset. [12 marks]
@@ -474,19 +570,36 @@ cor_df <- as.data.frame(cor_df)
 rownames(cor_df) <- cor_df$variable1
 cor_df <- cor_df[,-1]
 
+## Set names for corplot printing after this
+colnames(cor_df) <-  c("Electricity access", "Income growth",
+                       "Income growth percent", "Children out of school",
+                       "Infant mortality rate", "Primary completion rate",
+                       "Real interest rate", "Percent pop. growth",
+                       "Pop. density", "Total pop.",
+                       "Health spending per capita",
+                       "Health spending perc. GDP",
+                       "Unemployment rate",
+                       "GDP growth",
+                       "GDP per capita",
+                       "Birth rate",
+                       "Adults HIV perc.",
+                       "Safe drinking water",
+                       "Education duration")
+rownames(cor_df) <- colnames(cor_df)
+  
 # Plot
 #corrplot.mixed(as.matrix(cor_df), lower.col = "black", number.cex = 0.7, tl.cex = 0.5)
-corrplot(as.matrix(cor_df),tl.cex = 0.5)
+corrplot(as.matrix(cor_df),tl.cex = 0.8, tl.col="black")
 
-# VIF. Find mean over imputations
+# VIF. Find mean over imputations initially
 vif_output <- list()
-for (i in 1:15){
+for (i in 1:10){
   vif_output[[i]] <- faraway::vif(complete(imputations, i)[,-c(1,2)])
 }
 vif_output_means <- c()
 for (i in 1:length(vif_output[[1]])){
   val_vec <- c()
-  for (j in 1:15){
+  for (j in 1:10){
     val_vec[j] <- vif_output[[j]][i]
   }
   vif_output_means[i] <- mean(val_vec)
@@ -494,9 +607,55 @@ for (i in 1:length(vif_output[[1]])){
 }
 vif_output_means
 
+# VIF. Find mean over imputations after
+drop_vars <- c("Continent","life_expectancy","income_growth","birth_rate", "electricity_access", "health_expend_pc")
+
+
+vif_output_after <- list()
+for (i in 1:10){
+  vif_output_after[[i]] <- faraway::vif(complete(imputations, i)[,!(names(complete(imputations, i)) %in% drop_vars)])
+}
+vif_output_means_after <- c()
+for (i in 1:length(vif_output_after[[1]])){
+  val_vec_after <- c()
+  for (j in 1:10){
+    val_vec_after[j] <- vif_output_after[[j]][i]
+  }
+  vif_output_means_after[i] <- mean(val_vec_after)
+  names(vif_output_means_after)[i] <- names(vif_output_after[[1]][i])
+}
+vif_output_means_after
 ```
 
-We see a number of variables that have high VIFs and correlations with similar values with absolute values > 0.8. Based on these observations, we decide to remove national net income growth because of its high correlation with national net income growth per capita (r = 0.979), birth rate because of its high positive correlation with population growth rate (r = 0.76), infant mortality rate (r = 0.86) and large negative correlation with safe drinking water rate (r = - 0.85). Removing these helps us address multicollinearity which makes our coefficients and their standard errors more appropriate. We also decide to remove electricity access because of its high VIF and large correlations with infant mortality rate (r = 0.81), primary completion rate (r = 0.71), and safe drinking water rate (r = 0.72).
+```{r}
+### VIF table
+temp <- data.frame("Feature" = names(vif_output_means_after),
+                   "VIF After Dropping Vars" = vif_output_means_after)
+
+tableS1_df <- data.frame("Feature" = colnames(cor_df),
+                         "VIF" = sprintf("%.2f",vif_output_means))
+tableS1_df <- dplyr::left_join(tableS1_df, temp, by = "Feature")%>%
+  dplyr::mutate(VIF.After.Dropping.Vars = 
+                  ifelse(is.na(VIF.After.Dropping.Vars),
+                         " ",
+                         sprintf("%.2f", VIF.After.Dropping.Vars)))
+
+names(tableS1_df)[3] <- "VIF After Dropping Vars"
+
+
+tableS1_table <- flextable(tableS1_df)
+
+tableS1_table <- align(tableS1_table,j =1, align = "left", part = "all")
+tableS1_table <- align(tableS1_table,j =2:3, align = "right", part = "all")
+tableS1_table <- width(tableS1_table, width = c(1.4,1.0, 1.0))
+#table1_table <- height_all(table1_table,height = 0.30)
+tableS1_table <- hrule(tableS1_table, rule = "at least", part = "all")
+tableS1_table
+
+
+```
+
+We see a number of variables that have high VIFs and correlations with similar values with absolute values > 0.8. Based on these observations, we decide to remove national net income growth because of its high correlation with national net income growth per capita (r = 0.979), birth rate because of its high positive correlation with population growth rate (r = 0.76), infant mortality rate (r = 0.86) and large negative correlation with safe drinking water rate (r = - 0.85), and healthcare expenditure per capita because of its high correlation with GDP per capita (r = 0.81) and healthcare expenditure as percent of GDP (r = 0.51). We also decide to remove electricity access because of its high VIF and large correlations with infant mortality rate (r = 0.81), primary completion rate (r = 0.71), and safe drinking water rate (r = 0.72). Removing these helps us address multicollinearity, as evidenced by the larrge drop in VIF (Table S1), which makes our coefficients and their standard errors more appropriate. 
 
 3. To understand better life expectancy and the factors that affect it, suggest the best linear model which predicts life expectancy in 2020. Interpret and evaluate the suggested model. [25 marks]
 
@@ -505,7 +664,9 @@ stripplot(imputations, pch = 20, cex = 1.2)
 #xyplot(imputations, bmi ~ chl | .imp, pch = 20, cex = 1.4)
 
 #Define the analysis you want to perform at Stage 2
-feature.selection1 <- expression(null.model1 <- lm(life_expectancy ~ 1), model2 <- step(null.model1, scope = ~  income_growth_pc + children_out_of_school + infant_mortality_rate + primary_completion_rate + real_interest_rate + pop_growth_perc_annual + pop_dens + pop_total + health_expend_pc + health_expend_perc_gdp + unemployment_rate + gdp_growth + gdp_pc + adults_HIV + safe_drinking_water + ed_duration))
+feature.selection1 <- expression(null.model1 <- lm(life_expectancy ~ 1), model2 <- step(null.model1, scope = ~  income_growth_pc + children_out_of_school + infant_mortality_rate + primary_completion_rate + real_interest_rate + pop_growth_perc_annual + pop_dens + pop_total + health_expend_perc_gdp + unemployment_rate + gdp_growth + gdp_pc + adults_HIV + safe_drinking_water + ed_duration, direction = "forward"))
+
+#feature.selection1 <- expression(null.model1 <- lm(life_expectancy ~ 1), model2 <- step(null.model1, scope = ~  income_growth_pc + infant_mortality_rate + pop_growth_perc_annual + pop_dens + pop_total + health_expend_pc + health_expend_perc_gdp + gdp_growth + gdp_pc +  ed_duration))
 
 #Using the with function evaluate the above expression
 step.fit <- with(imputations, feature.selection1)
@@ -526,40 +687,86 @@ We observe that five features appear in at least 80% of the final models after s
 ```{r, echo = FALSE}
 # Ge
 fit <- with(imputations, lm(life_expectancy ~ 
-         adults_HIV + infant_mortality_rate + safe_drinking_water + 
-         health_expend_pc + pop_dens))
+         health_expend_perc_gdp + infant_mortality_rate + safe_drinking_water + 
+         gdp_pc))
 
 fit$analyses %>% str(max.level = 1)
   
 pooled_results <- mice::pool(fit)
 summary(pooled_results)
+
 ```
 
-We see that in this final model, all five features are statistically significantly associated with life expectancy at the 5% level. The coefficients, errors, and p-values are displayed in the table above. After controlling for the other features, the a one unit increase in infant mortality rate is associated with a -0.26 year increase (0.26 year decrease) in life expectancy. Altogether, our model provides evidence that the number of adults newly infected with HIV and the infant mortality rate (possible proxy variables for weaker health system) are associated with lower life expectancies on average, while the increased percents of populations using safe drinking water, health expenditures per capita, and population densities are associated with higher life expectancies on average. 
+```{r, echo = FALSE}
+# Create table showing output
+m <- 10
+df <- as.data.frame(summary(pooled_results))
+table3_df <- c()
+table3_df$Feature <- c("Intercept",
+                        "Number of adults with HIV", 
+                       "Infant mortality rate",
+                       "% drinking safe water",
+                       "GDP per capita")
+table3_df$Estimate <- sprintf("%.4f", df$estimate)
+table3_df$SE <- sprintf("%.5f", df$std.error)
+table3_df$df <- sprintf("%.2f", df$df)
+table3_df$P_val <- sprintf("%.4f", df$p.value)
+table3_df$P_val <- ifelse(table3_df$P_val == "0.0000",
+                          "< 0.0001", table3_df$P_val)
+table3_df$BestSubsetFrequency <- c(" ",
+  table(feature.frequency)[names(table(feature.frequency)) == "adults_HIV"]/m,
+  table(feature.frequency)[names(table(feature.frequency)) == "infant_mortality_rate"]/m,
+  table(feature.frequency)[names(table(feature.frequency)) == "safe_drinking_water"]/m,
+  table(feature.frequency)[names(table(feature.frequency)) == "gdp_pc"]/m
+)
 
-To reassure ourselves that this is an appropriate final model, we run some model diagnostic tests (with some help from Solomon Kurz blog post).  
-
-```{r}
 # recalculate VIF for these five vars only
 vif_output <- list()
-for (i in 1:15){
+for (i in 1:10){
   vif_output[[i]] <- faraway::vif(dplyr::select(
     complete(imputations, i), adults_HIV, infant_mortality_rate,
-     safe_drinking_water, health_expend_pc, pop_dens))
+     safe_drinking_water, gdp_pc))
 }
 vif_output_means2 <- c()
 for (i in 1:length(vif_output[[1]])){
   val_vec <- c()
-  for (j in 1:15){
+  for (j in 1:10){
     val_vec[j] <- vif_output[[j]][i]
   }
   vif_output_means2[i] <- mean(val_vec)
   names(vif_output_means2)[i] <- names(vif_output[[1]][i])
 }
 vif_output_means2
+table3_df$VIF <- c(" ",vif_output_means2)
+table3_df <- as.data.frame(table3_df)
+
+
+names(table3_df) <- c("Feature",
+                      "Estimate",
+                      "Standard Error",
+                      "df",
+                      "P-value",
+                      "Proportion of Best Subsets Appeared in",
+                      "VIF")
+
+table3_table <- flextable(table3_df, col_keys = c("Feature",
+                      "Estimate",
+                      "Standard Error",
+                      "df",
+                      "P-value",
+                      "Proportion of Best Subsets Appeared in",
+                      "VIF"))
+
+table3_table <- align(table3_table,j =1, align = "left", part = "all")
+table3_table <- align(table3_table,j =2:7, align = "right", part = "all")
+table3_table <- width(table3_table, width = c(1.4,1.0, 1.1, 1.3, 1.0, 1.0, 1.0 ))
+#table1_table <- height_all(table1_table,height = 0.30)
+table3_table <- hrule(table3_table, rule = "at least", part = "all")
+table3_table <- vline(table3_table, i = NULL, j = 5, part = "body", 
+                      border = fp_border(color="black"))
+table3_table
 ```
 
-First, we check the variance inflation factors of the features selected for our final model. They are all below four, which is a good sign that multicollinearity is not too much of a problem.
 
 ```{r, echo = FALSE}
 
@@ -574,12 +781,7 @@ predict_df <- cbind(
   predict(fit$analyses[[7]], newdata = complete(imputations, 7)),
   predict(fit$analyses[[8]], newdata = complete(imputations, 8)),
   predict(fit$analyses[[9]], newdata = complete(imputations, 9)),
-  predict(fit$analyses[[10]], newdata = complete(imputations, 10)),
-  predict(fit$analyses[[11]], newdata = complete(imputations, 11)),
-  predict(fit$analyses[[12]], newdata = complete(imputations, 12)),
-  predict(fit$analyses[[13]], newdata = complete(imputations, 13)),
-  predict(fit$analyses[[14]], newdata = complete(imputations, 14)),
-  predict(fit$analyses[[15]], newdata = complete(imputations, 15))
+  predict(fit$analyses[[10]], newdata = complete(imputations, 10))
 )
 
 observed_df <- cbind(
@@ -592,16 +794,11 @@ observed_df <- cbind(
   dplyr::select(complete(imputations, 7), life_expectancy),
   dplyr::select(complete(imputations, 8), life_expectancy),
   dplyr::select(complete(imputations, 9), life_expectancy),
-  dplyr::select(complete(imputations, 10), life_expectancy),
-  dplyr::select(complete(imputations, 11), life_expectancy),
-  dplyr::select(complete(imputations, 12), life_expectancy),
-  dplyr::select(complete(imputations, 13), life_expectancy),
-  dplyr::select(complete(imputations, 14), life_expectancy),
-  dplyr::select(complete(imputations, 15), life_expectancy)
+  dplyr::select(complete(imputations, 10), life_expectancy)
 )
 
 residual_df <- predict_df - observed_df
-names(residual_df) <- c(1:15)
+names(residual_df) <- c(1:10)
 
 # Residual_df has 15 columns (one for each imp) and 217  rows
 # (one per obs). Now we find the mean for each obs and use that
@@ -659,6 +856,7 @@ The figure above shows evidence that the residuals produced by our model predict
 
 4. Using the same dataset and using the additional feature Continent, employ an appropriate experimental design to study differences of average life expectancies across the continents: Asia, Europe, North America, South America, Africa, Australia/Oceania. Justify your choice of experimental design and methods. [13 marks]
 
+
 ```{r, echo = FALSE}
 library(car)
 anova_LE <- aov(life_expectancy ~ as.factor(Continent), data=complete(imputations))
@@ -666,7 +864,6 @@ summary(anova_LE)
 Anova(anova_LE, type = "III")
 
 ```
-
 To study the differences in life expectancy across continents (a factor variable), we employ an ANCOVA experimental design. ANCOVA is designed specifically for testing whether there is a difference in means for a continuous response variable (in our case, life expectancy) across a categorical predictoor (continent), and it has the additional benefit of controlling for covariates that are independent of the predictor. In our experimental design, we perform an ANCOVA with % of GDP spent on health as a covariate. 
 
 Due to the fact that the references and software for performing ANCOVA and related post-hoc analyses on multiply imputed data are limited, we use single imputation by chained equations (multiple imputation with m = 1) for this experiment. To combat the limitations of only using one imputation, we will also perform sensitivity analyses with different random seeds given to the imputation algorithm to ensure that was not do to the randomness of the single imputation.
@@ -677,7 +874,7 @@ anova_data <- complete(imputations, 1)
 anova_data$Continent <- as.factor(anova_data$Continent)
 
 # perform ANCOVA (according to slides from Lecture 10)
-le.aov <- aov(life_expectancy ~ health_expend_perc_gdp + Continent,
+le.aov <- aov(life_expectancy ~ log(gdp_pc) + Continent,
                data = anova_data)
 summary(le.aov)
 
@@ -695,20 +892,63 @@ Before proceeding with the statistical tests, we check the assumptions of ANCOVA
 * The relationship between the response and the covariate is linear.
 ```{r, echo = FALSE}
 # Plot life expectancy by % of GDP spent on healthcare
-p1 <- ggplot(anova_data, aes(x = health_expend_perc_gdp, 
+p1 <- ggplot(anova_data, aes(x = log(gdp_pc), 
                              y = life_expectancy, 
                              color = Continent)) +
   theme_bw()+
-  geom_point()+
+  geom_point(alpha = 0.5, size = 0.8)+
+  xlab("log(GDP per capita in thousands)")+
+  ylab("Life expectancy") +
   ggsci::scale_color_jama()+
   geom_smooth(method="lm",se = FALSE)
+
+# Figure showing life expectancy by continent (with singly imputed dataset that we will use)
+
+p2 <- ggplot(complete(imputations, 1), aes(x = Continent,
+                                        y = life_expectancy, 
+                 color = Continent)) +
+  geom_boxplot(show.legend = FALSE) +
+  ggsci::scale_color_jama() +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = -45),
+        plot.margin = unit(c(1,0.5,0.5,0.5), "cm")) +
+  xlab("Continent")+
+  ylab("Life Expectancy (Years)") 
+
+plot_grid(p1, p2, labels = c("A", "B"))
+
+```
+
+```{r, echo = FALSE}
+# test for homogeneity of variances
+car::leveneTest(anova_data$life_expectancy~anova_data$Continent)
 ```
 
 * Normality of residuals
 * Equal variances between the different continents
 
-```{r, echo = FALSE}
-# test for homogeneity of variances
+```{r}
+# Look at residuals
+anova_data$residuals <- le.aov$residuals
+p1 <- ggplot(anova_data, aes(residuals)) +
+  geom_histogram(color = "#000000", fill = "#0099F8") +
+  theme_bw()+
+  xlab("Residual")+
+  ylab("Frequency")+ 
+  theme(plot.margin = unit(c(1,0.5,0.5,0.5), "cm"))
+p2 <- ggplot(anova_data, aes(sample = residuals)) +
+  stat_qq() +
+  stat_qq_line() + 
+  theme_bw()+ 
+  theme(plot.margin = unit(c(1,0.5,0.5,0.5), "cm")) +
+  xlab("Theoretical") +
+  ylab("Sample")
+
+plot_grid(p1, p2, labels = c("A.", "B"))
+
+shapiro.test(anova_data$residuals1)
 ```
+
+
 
 (Null hypothesis and alternative hypothesis here)
