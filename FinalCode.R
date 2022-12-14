@@ -22,8 +22,8 @@ library(car)
 # Read in the data, make initial changes
 LE_data_raw <- read.csv("Life_Expectancy_Data1.csv")
 LE_data <- subset(LE_data_raw, select = -c(Country.Code,EG.FEC.RNEW.ZS)) #we deleted .. 
-  #Renewable energy consumption because it had 100% missingness. 
-  # And don't need Country Code as it is redundant for Country Name
+# Renewable energy consumption because it had 100% missingness. 
+# And don't need Country Code as it is redundant for Country Name
 LE_data$SP.POP.TOTL <- LE_data$SP.POP.TOTL/100000 # Change units of population to be more interpretable
 LE_data$SH.HIV.INCD <- LE_data$SH.HIV.INCD/1000 # Change units of HIV adults to 1000s
 
