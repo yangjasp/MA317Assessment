@@ -661,7 +661,6 @@ tableS1_table <- flextable(tableS1_df)
 tableS1_table <- align(tableS1_table,j =1, align = "left", part = "all")
 tableS1_table <- align(tableS1_table,j =2:3, align = "right", part = "all")
 tableS1_table <- width(tableS1_table, width = c(1.4,1.0, 1.0))
-#table1_table <- height_all(table1_table,height = 0.30)
 tableS1_table <- hrule(tableS1_table, rule = "at least", part = "all")
 tableS1_table # Note: we had to edit this in word after to add correct "after" values
 
@@ -855,7 +854,7 @@ plot_grid(top, bottom, nrow = 2)
 
 
 ######
-### Table S2: Predictionf for other 19 countries
+### Table S2: Predictions for other 19 countries
 ######
 
 # Generate predictions for the 19 countries initially missing LE and print results in table
@@ -920,7 +919,6 @@ tableS2_table <- flextable(tableS2_df,
 tableS2_table <- align(tableS2_table,j =1, align = "left", part = "all")
 tableS2_table <- align(tableS2_table,j =2, align = "right", part = "all")
 tableS2_table <- width(tableS2_table, width = c(1.4,1.0))
-#table1_table <- height_all(table1_table,height = 0.30)
 tableS2_table <- hrule(tableS2_table, rule = "at least", part = "all")
 tableS2_table
 
