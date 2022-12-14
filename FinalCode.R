@@ -954,7 +954,8 @@ summary(tukey.le)
 # Note: we also trried re-running above code using complete(imputations, i)
 # With i = 2,3,...,10 as sensitivity analysis and got similar results
 
-Before proceeding with the statistical tests, we check the assumptions of ANCOVA which are (show diagnostic plots in appendix):
+#Before proceeding with the statistical tests, we check the assumptions of 
+#ANCOVA which are (show diagnostic plots in appendix):
   
 #####
 ### Figure 5: 
